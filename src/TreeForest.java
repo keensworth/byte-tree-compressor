@@ -1,53 +1,96 @@
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.IOException;
-import java.time.Duration;
-import java.time.Instant;
+import java.io.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
-public class TreeForest extends TreeCompress {
+public class TreeForest extends TreeCompress{
+    public static void compress(String inputFilePath,String outputFilePath) throws IOException{
 
-    public static void main (String[] args) throws IOException{
         //Import Image to compress
         BufferedImage image;
-        File input = new File("INPUT_FILE_PATH");
+        File input = new File(inputFilePath);
         image = ImageIO.read(input);
         int width = image.getWidth();
         int height = image.getHeight();
 
-        data = width*height; //(or arbitrary binary length for testing)
+        data = width*height;
 
-        //determine whether to map 1's or 0's for each map
+        //for each map, reverse bits if >50% are '1'
         reverseAnalysis(image,width,height);
 
-        int k=8;
+        int k=8; //grouping of 8 bits
+
         //Initialize variables
         initVariables(k);
 
         //Scan over image/data and compress
-        long start = System.currentTimeMillis();
         compressData(k, width, height, image);
-        long finish = System.currentTimeMillis();
-        long timeElapsed = finish - start;
-        System.out.println("Image compressed in "+timeElapsed + "ms");
+
 
         //Shrink trees and write to file
-        /*
-        start = System.currentTimeMillis();
+        File f = new File(outputFilePath);
+        ZipOutputStream out = new ZipOutputStream(new FileOutputStream(f));
         for (int tempMap = 0; tempMap < mapDepth; tempMap++){
-            writeToFile(treeArray[tempMap].shrinkTree(),tempMap);
+            writeToFile(treeArray[tempMap].shrinkByteTree(data, width, height,reverse[tempMap]),tempMap,outputFilePath,out);
         }
-        finish = System.currentTimeMillis();
-        timeElapsed = finish - start;
-        System.out.println("Arrays decreased in " + timeElapsed + "ms");
-         */
+        out.close();
+    }
 
-        //Decompress image directly from ByteTree objects
-        start = System.currentTimeMillis();
-        decompressData(k, width, height);
-        finish = System.currentTimeMillis();
-        timeElapsed = finish - start;
-        System.out.println("Image decompressed in " + timeElapsed + "ms");
+    public static void decompress(String inputFilePath,String outputFilePath) throws IOException{
+        int width = 0,height=0;
+        System.out.println(inputFilePath);
+        FileInputStream fis = new FileInputStream(inputFilePath);
+        BufferedInputStream bis = new BufferedInputStream(fis);
+        ZipInputStream zis = new ZipInputStream(bis);
+        ZipEntry tempFile;
+
+        int tempMap = 0;
+        while ((tempFile = zis.getNextEntry()) != null) {
+            FileInputStream currFile = new FileInputStream(inputFilePath + "\\" + tempFile.getName().substring(1)); //IOException <---------------
+            BufferedInputStream currStream = new BufferedInputStream(currFile);
+
+            int width1 = currStream.read();
+            int width2 = currStream.read();
+            int height1 = currStream.read();
+            int height2 = currStream.read();
+            width = ((width1<<8)&0b1111111)|width2; //Image width
+            height = (height1<<8)|height2; //Image height
+
+            data = width*height;
+            reverse[tempMap] = ((width1>>>7)&0b1)==1; //Reverse bit
+            initVariables(8);
+
+            int tempOrder = 0;
+            byte prevByte=1;
+            while( currStream.available() > 0 ){
+                byte currByte = (byte)currStream.read();
+                if (currByte==0 && prevByte==0){
+                    tempOrder++;
+                }
+                else if (currByte !=0){
+                    treeArray[tempMap].setData(tempOrder,treeArray[tempMap].getOrderIndex(tempOrder));
+                    treeArray[tempMap].incIndex(tempOrder);
+                }
+
+                prevByte = currByte;
+            }
+            tempMap++;
+        }
+
+        //Begin decompression
+        System.out.println("Decompression start.");
+        decompressData(8, width, height,outputFilePath);
+        System.out.println("Decompression end.");
+
+    }
+
+    static void writeToFile(byte[] byteArr, int mapping, String outputPath,ZipOutputStream out) throws IOException{
+        ZipEntry entry = new ZipEntry("/m_"+mapping+".bin");
+        out.putNextEntry(entry);
+        out.write(byteArr, 0, byteArr.length);
+        out.closeEntry();
     }
 
     static void initVariables(int k){

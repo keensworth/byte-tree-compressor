@@ -1,20 +1,13 @@
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.File;
 
 
 class TreeCompress{
-    //-------------Arbitrary binary------------------------|
-    static int data; //change to mxn                       |
-    //private static double probability = (float) (1/64);//|
-    // static int[] binArray;                            //|
-    //-----------------------------------------------------|
-
-
-    static int mapDepth = 24; //768 RGB - 256 bit coupling - 96 half bytes
+    static int data;
+    static int mapDepth = 24;
     static int maxOrder;
 
     static ByteTree[] treeArray;
@@ -28,19 +21,18 @@ class TreeCompress{
     //Counting Functions
     static int[][] bitCount;
     static int[][] groupCount;
-    private static boolean[] reverse = new boolean[mapDepth];
+    static boolean[] reverse = new boolean[mapDepth];
 
     static int presentCount;
     static boolean lastRun = false;
 
 
-
-    static void decompressData(int kk, int width, int height){
+    static void decompressData(int kk, int width, int height, String outputPath){
         colorArray = new int[data];
         int tempMask = 0b100000000000000000000000;
         int baseMask = 0b000000000000000000000000;
 
-        //init colorArray w/ binary literals (set corresponding reverse[] bits to 1, else 0)
+        //initialize colorArray w/ binary literals (set corresponding reverse[] bits to 1, else 0)
         for(int tempMap = 0; tempMap<mapDepth; tempMap++){
             if (reverse[tempMap]){
                 baseMask |= (tempMask>>>tempMap);
@@ -53,8 +45,7 @@ class TreeCompress{
         //TODO: option for alpha channel
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);;
 
-        //Build one dimensional color array (to build image with)
-        char compareChar;
+        //Build one dimensional color array (1D pixel array)
         boolean flip;
         for(int tempMap = 0; tempMap<mapDepth; tempMap++){
             flip = reverse[tempMap];
@@ -73,10 +64,10 @@ class TreeCompress{
             }
         }
 
-        //Write image to disk
+        //Write img to disk
         try
         {
-            File f = new File("OUTPUT_PATH/file_name.png");
+            File f = new File(outputPath);
             ImageIO.write(img, "png", f);
         }
         catch(IOException e)
@@ -89,7 +80,7 @@ class TreeCompress{
         }
         else{
             byte tempByte = treeArray[mapping].getData(order,reconIndex[mapping][order]);
-            //Scan over byte and either   1) keep moving down tree   2) build color array if order=0
+            //Scan over byte and either:   1) keep moving down tree   2) build colorArray if order==0
             for (int tempK = 0; tempK<kk; tempK++){
                 if (lastIndex+tempK<data && ((tempByte>>>(7-tempK))&0b1)==1){ //relevant information in tree
 
@@ -99,9 +90,8 @@ class TreeCompress{
                         //if flip is true, a '1' in the base of the tree indicates that the raw data should be a 0 there
                         if (flip){ colorArray[lastIndex+tempK] &= ~(mask>>>mapping); }
                         else { colorArray[lastIndex+tempK] |= (mask>>>mapping); }
-                    }
 
-                    else { fillColorArray(kk,mapping,order-1, flip, tempK*(int)Math.pow(kk, order)+lastIndex); }
+                    } else { fillColorArray(kk,mapping,order-1, flip, tempK*(int)Math.pow(kk, order)+lastIndex); }
                 }
             }
             reconIndex[mapping][order]++;
@@ -129,22 +119,21 @@ class TreeCompress{
 
                 presentCount+=3;
 
-
                 //Bits - 24 ----------------------------------------------------------------------------
 
                 //Scan the bits for each R, G, and B.
                 int counter = 0;
-                //color 0-2, for each color
+                //colors 0,1,2 (R,G,B)
                 for (int color = 0; color<3;color++){
                     for(int slide = 1; slide<9; slide++){
                         tempColor = (colorArray[color]>>>(8-slide))&1; //move across respective color byte and call tree function w/ respect to reverse
-                        if (reverse[counter]){ //work with 0's to call function
+                        if (reverse[counter]){ //work with 0's to call treeUpdate
                             if (tempColor==0){
                                 treeUpdate(order,kk,counter);
                             }
                         }
                         else {
-                            if (tempColor == 1) { //work with 1's to call function
+                            if (tempColor == 1) { //work with 1's to call treeUpdate
                                 treeUpdate(order, kk, counter);
                             }
                         }
@@ -164,9 +153,9 @@ class TreeCompress{
 
         else{
             //Finish previous byte
-            if (inProgress[mapping][order]){
+            if (inProgress[mapping][order])
                 treeArray[mapping].incIndex(order);
-            }
+
 
             //Start new byte
             treeArray[mapping].setData(order,orderTempIndex[order]);
@@ -177,9 +166,9 @@ class TreeCompress{
             }
 
             //Build higher order tree
-            if (order<maxOrder-1) {
+            if (order<maxOrder-1)
                 treeUpdate(order + 1, kk, mapping);
-            }
+
         }
 
         if (orderTempIndex[order] == kk-1){
@@ -243,14 +232,5 @@ class TreeCompress{
         }
     }
 
-    static void writeToFile(byte[] byteArr, int mapping){
-        File file = new File("C:/Users/Sargy/IdeaProjects/Compression/resources/output/outfull"+mapping+".bin");
-        try (FileOutputStream fos = new FileOutputStream(file)) {
-            fos.write(byteArr);
-            System.out.println("Wrote "+mapping);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 }
 
