@@ -48,8 +48,12 @@ public class TreeForest extends TreeCompress{
 
         int tempMap = 0;
         while ((tempFile = zis.getNextEntry()) != null) {
+            System.out.println("here1");
+            System.out.println(tempFile.getName());
             FileInputStream currFile = new FileInputStream(inputFilePath + "\\" + tempFile.getName().substring(1)); //IOException <---------------
+            System.out.println("here2");
             BufferedInputStream currStream = new BufferedInputStream(currFile);
+            System.out.println("here3");
 
             int width1 = currStream.read();
             int width2 = currStream.read();
@@ -79,7 +83,7 @@ public class TreeForest extends TreeCompress{
             tempMap++;
         }
 
-        //Begin decompression
+        //Begin decompression (using newly created ByteTree objects)
         System.out.println("Decompression start.");
         decompressData(8, width, height,outputFilePath);
         System.out.println("Decompression end.");
