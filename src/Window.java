@@ -87,11 +87,14 @@ public class Window extends JFrame {
                     JOptionPane.showMessageDialog(frame, "No input file chosen.");
                 } else {
                     try {
-                        TreeForest.compress(filePath, fileDirectory);
+                        Compress compression = new Compress(filePath, fileDirectory);
+                        compression.compress();
                     } catch (IOException e){ }
                     filePath = null;
                     fileName = null;
                     fileDirectory = null;
+                    compressLabel1.setText("None selected");
+                    compressLabel2.setText("None selected");
                 }
             }
         });
@@ -105,17 +108,20 @@ public class Window extends JFrame {
                     JOptionPane.showMessageDialog(frame, "No input file chosen.");
                 } else {
                     try {
-                        TreeForest.decompress(filePath, fileDirectory);
+                        Decompress decompression = new Decompress(filePath, fileDirectory);
+                        decompression.decompress();
                     } catch (IOException e){ }
                     filePath = null;
                     fileName = null;
                     fileDirectory = null;
+                    decompressLabel1.setText("None selected");
+                    decompressLabel2.setText("None selected");
                 }
             }
         });
     }
 
-    String pickDestination(){
+    private String pickDestination(){
         JFrame testFrame = new JFrame("TreeCompress");
         FileDialog fd = new FileDialog(testFrame, "Choose a destination", FileDialog.SAVE);
         fd.setDirectory("C:\\");
@@ -126,7 +132,7 @@ public class Window extends JFrame {
         return fileDirectory + fileName;
     }
 
-    String pickFile(){
+    private String pickFile(){
         JFrame testFrame = new JFrame("TreeCompress");
         FileDialog fd = new FileDialog(testFrame, "Choose a file (.jpg or .png)", FileDialog.LOAD);
         fd.setDirectory("C:\\");

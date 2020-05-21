@@ -1,104 +1,129 @@
 public class ByteTree {
-    //Used to hold compressed data for writing to file or decompressing
+    //Used to hold compressed data for writing to file or decompressing data
 
     int tempMask = 0b10000000;
-    private byte[] byteTree;
-    private int[] baseIndexArray; //starting index for each order
-    private int[] lastUpdate; //index of most recent setData total index (to know how much to consider when writing to disk)
-    private int[] orderCount; //order-relative index of last update
-    private int dataLength; //total array length
+    private byte[][] byteTree;
+    private int[] writeIndex; //current index to write to
+    private int[] readIndex;
+    private int maxOrd;
 
-    private int maxOrd, width, height;
-    ByteTree(int data, int k, int maxOrder){
-        dataLength = data;
-        //Init index array to navigate tree array
-        this.baseIndexArray = new int[maxOrder];
-        this.lastUpdate = new int[maxOrder];;
-        this.orderCount = new int[maxOrder];
+    ByteTree(int dataSize, int k, int maxOrder){
         this.maxOrd = maxOrder;
+        this.writeIndex = new int[this.maxOrd];
+        this.byteTree = new byte[this.maxOrd][];
 
-        this.baseIndexArray[0]=0;
-        for (int i=1; i<maxOrder; i++){
-            this.baseIndexArray[i] = (int)Math.ceil(dataLength/Math.pow(8,i)) + this.baseIndexArray[i-1];
-        }
+        //Initialize ByteTree array and fill it with empty bytes
+        for (int tempOrder = 0; tempOrder<this.maxOrd; tempOrder++){
 
-        int length = (dataLength/(k-1))+maxOrder;
-        this.byteTree = new byte[length];
-        for (int j = 0; j<length; j++){
-            this.byteTree[j] = (byte) 0b00000000;
+            int maxPossibleData = (int)Math.ceil(((double)dataSize / (Math.pow(k,tempOrder+1)))) + 1;
+            this.byteTree[tempOrder] = new byte[maxPossibleData];
+
+            for (int tempIndex = 0; tempIndex < maxPossibleData; tempIndex++ ){
+                this.byteTree[tempOrder][tempIndex] = (byte) 0b00000000;
+            }
         }
     }
 
     //Sets relevant bit of corresponding byte to high
-    void setData(int order, int dataIndex){
-        int tempIndex = this.baseIndexArray[order]+this.getOrderIndex(order);
-        this.lastUpdate[order] = tempIndex;
-        this.byteTree[tempIndex] = (byte) (this.byteTree[tempIndex]|(tempMask>>>dataIndex));
+    void setData(int order, int bitIndex){
+        int currentIndex = this.getWriteIndex(order);
+        this.byteTree[order][currentIndex] = (byte) (this.byteTree[order][currentIndex]|(tempMask>>>bitIndex));
     }
 
-    void incIndex(int order){
-        this.orderCount[order]++;
+    //Sets byte to passed argument
+    void setData(int order, byte byteData){
+        int currentIndex = this.getWriteIndex(order);
+        this.byteTree[order][currentIndex] = byteData;
     }
 
-    void decIndex(int order) { this.orderCount[order]--; }
-
-    //Returns the index of the most recently edited byte, relative to order
-    int getOrderIndex(int order){
-        return this.orderCount[order];
-    }
-
-    //Returns byte at corresponding index
+    //Returns byte at corresponding order,index
     byte getData(int order, int index){
-        return this.byteTree[this.baseIndexArray[order]+index];
+        return this.byteTree[order][index];
     }
 
-    byte[] getByteTree(){
-        return this.byteTree;
+    byte getData(int order){
+        byte data = this.byteTree[order][readIndex[order]];
+        this.incReadIndex(order);
+        return data;
     }
 
-    byte[] shrinkByteTree(int dataLength, int width, int height, boolean reverse){
-        int[] newBaseIndexArray = new int[this.maxOrd];
-        newBaseIndexArray[0]=0;
-        int dataCount = 0;
+    void incWriteIndex(int order){
+        this.writeIndex[order]++;
+    }
 
-        for (int ord = 0; ord < this.maxOrd; ord++){
-            int peakIndex = (int)Math.ceil(dataLength/Math.pow(8,ord));
+    void decWriteIndex(int order) { this.writeIndex[order]--; }
 
-            int usefulData = this.getOrderIndex(ord);
-            if (usefulData == peakIndex){
-                usefulData--;
-                this.decIndex(ord);
-            }
-            dataCount += this.getOrderIndex(ord) + 1;
-            if (ord>0) {
-                newBaseIndexArray[ord] = this.getOrderIndex(ord-1) + 2 + newBaseIndexArray[ord-1];
-            }
+    void incReadIndex(int order){
+        this.readIndex[order]++;
+    }
+
+    void decReadIndex(int order) { this.readIndex[order]--; }
+
+    //Returns the index of the current byte to be written
+    int getWriteIndex(int order){
+        return this.writeIndex[order];
+    }
+
+    int getReadIndex(int order) { return this.readIndex[order]; }
+
+    byte[] condenseByteTree(boolean reverse){
+        this.patchWriteIndexes();
+
+        int condensedDataSize = 0;
+        for (int tempOrder = 0; tempOrder < this.maxOrd; tempOrder++){
+            condensedDataSize += this.getWriteIndex(tempOrder)+2;
         }
-        dataCount+=4; //2 bytes for width tag and 2 bytes for height tag
-        byte[] newArray = new byte[dataCount+this.maxOrd];
-        System.out.println(dataCount);
 
-        //create width/height tags
-        newArray[0]=(byte)(width>>>8);
-        newArray[1]=(byte)(width&0b11111111);
-        newArray[2]=(byte)(height>>>8);
-        newArray[3]=(byte)(height&0b11111111);
+        condensedDataSize+=4;
 
+        byte[] condensedByteTree = new byte[condensedDataSize];
+
+        //write condensedDataSize tag
+        condensedByteTree[0]=(byte)((condensedDataSize>>24)&0xff);
+        condensedByteTree[1]=(byte)((condensedDataSize>>16)&0xff);
+        condensedByteTree[2]=(byte)((condensedDataSize>>8)&0xff);
+        condensedByteTree[3]=(byte)((condensedDataSize)&0xff);
         if (reverse){ //Change reverse-bit to a 1
-            newArray[0]|=0b10000000;
+            condensedByteTree[0]|=0b10000000;
+        }
+        
+        int buildIndex = 4;
+        for (int tempOrder = 0; tempOrder < this.maxOrd; tempOrder++){
+            for (int tempIndex = 0; tempIndex <= this.getWriteIndex(tempOrder); tempIndex++){
+                condensedByteTree[buildIndex] = this.getData(tempOrder,tempIndex);
+                buildIndex++;
+            }
+            condensedDataSize += this.getWriteIndex(tempOrder);
         }
 
-        //Remove empty bytes from bytetree array
-        for (int ord = 0; ord < this.maxOrd; ord++){
-            int maxOrderIndex = this.getOrderIndex(ord);
+        return condensedByteTree;
+    }
 
-            for (int index = 0; index < maxOrderIndex+1; index++){
-                int totalIndex = newBaseIndexArray[ord]+index+4;
+    void toByteTree(byte[] byteArray, boolean inverted){
+        int currentOrder = 0;
+        byte currentByte;
+        for (int index = 0; index < byteArray.length; index++){
+            currentByte = byteArray[index];
 
-                if (index != maxOrderIndex) { newArray[totalIndex] = this.getData(ord,index); } //insert data
-                else{ newArray[totalIndex] = 0; } //add 0-flag (to indicate order change in byte stream)
+            if (inverted) {
+                currentByte ^= 0xff;
+            }
+
+            if(currentByte!=0){
+                this.setData(currentOrder,currentByte);
+                this.incWriteIndex(currentOrder);
+            } else {
+                currentOrder++;
             }
         }
-        return newArray;
+        this.patchWriteIndexes();
+    }
+
+    void patchWriteIndexes() { //called when all data is written, increases writeIndex if current byte isn't = 0
+        for (int tempOrder = 0; tempOrder < this.maxOrd; tempOrder++){
+            if (this.getData(tempOrder,this.getWriteIndex(tempOrder)) == 0){
+                this.decWriteIndex(tempOrder);
+            }
+        }
     }
 }
