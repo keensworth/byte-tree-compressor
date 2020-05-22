@@ -12,7 +12,7 @@ This project prototypes a lossless image compression technique, described below.
 
 1. Copy https://github.com/keensworth/byte-tree-compressor.git 
 2. Go to **File** > **New** > **Project from Version Control...** > **Git**
-3. Paste link into the URL textbox and git **Clone**
+3. Paste link into the *URL* textbox and hit **Clone**
 4. Build project
 5. Run **WindowMain**
 
