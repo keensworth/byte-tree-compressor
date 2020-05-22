@@ -155,7 +155,7 @@ public class Window extends JFrame {
 
     private String pickFile(){
         JFrame testFrame = new JFrame("ByteTreeCompress");
-        FileDialog fd = new FileDialog(testFrame, "Choose a file (.jpg or .png)", FileDialog.LOAD);
+        FileDialog fd = new FileDialog(testFrame, "Choose a file", FileDialog.LOAD);
         fd.setDirectory("C:\\");
         fd.setFile("");
         fd.setVisible(true);
