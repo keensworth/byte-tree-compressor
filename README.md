@@ -19,16 +19,16 @@ This project prototypes a lossless image compression technique, described below.
 
 ### The Compression / Decompression Process
 
-The concept of this technique is to build a 8:1 tree above the color bitmaps (24 total, 8 for Red, 8 for Green, 8 for Blue). 
-The process involves scanning over each bitmap byte by byte. Each byte has a node (1 bit) above it, and that node is equal to:
+The concept of this technique is to build an 8:1 tree above the color bitmaps (24 total, 8 for Red, 8 for Green, 8 for Blue). 
+The process involves scanning over each bitmap, byte by byte. Each byte has a node (1 bit) above it, and that node is equal to:
 
 - 0 if the byte is equal to 0
 - 1 otherwise
 
 This process is repeated recursively, grouping those nodes into bytes and creating new nodes above those bytes. 
-At the end of the process, a 0 at any point in the tree (excluding the base, raw data) indicates that all bytes and sub-bytes are equal to 0.
+At the end of the process, a 0 at any point in the tree (excluding the base, raw data) indicates that all bytes and sub-bytes below it are equal to 0.
 
-Any zero-byte (and sub-bytes) do not need to be kept when the tree is written to file, as the tree itself can self-address the non-zero base bytes.
+Any zero-byte (and sub-bytes) do not need to be kept when the tree is written to file, as the tree structure itself can self-address the non-zero base bytes.
 
 The decompression process rebuilds the original bitmaps from the trees, and combines these bitmaps to form the original image.
 
