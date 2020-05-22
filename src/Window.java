@@ -1,8 +1,16 @@
+//This work is licensed under the Creative Commons
+// Attribution-NonCommercial-NoDerivs 3.0 Unported License.
+// To view a copy of this license, visit
+// http://creativecommons.org/licenses/by-nc-nd/3.0/ or send a letter
+// to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.MathContext;
 
 public class Window extends JFrame {
     private JFrame frame;
@@ -24,7 +32,7 @@ public class Window extends JFrame {
     public Window(){
         add(panel1);
         setTitle("Byte Tree Compressor");
-        setSize(550,150);
+        setSize(700,150);
 
         addListeners();
 
@@ -89,6 +97,19 @@ public class Window extends JFrame {
                     try {
                         Compress compression = new Compress(filePath, fileDirectory);
                         compression.compress();
+
+                        frame = new JFrame("Compression Complete");
+                        frame.setSize(100,50);
+
+                        long rawSize = compression.getRawSize();
+                        long compressedSize = compression.getCompressedSize();
+
+                        double ratio = (((double)compressedSize/(double)rawSize)*100);
+                        BigDecimal bd = new BigDecimal(ratio);
+                        bd = bd.round(new MathContext(4));
+                        double rounded = bd.doubleValue();
+
+                        JOptionPane.showMessageDialog(frame, "RAW Size: (width * height * 3 bytes/pixel)\n"+ String.format("%,d", rawSize) + " bytes\n\nCompressed Size:\n"+ String.format("%,d", compressedSize) +" bytes\n\n"+rounded+"% of original");
                     } catch (IOException e){ }
                     filePath = null;
                     fileName = null;
@@ -122,7 +143,7 @@ public class Window extends JFrame {
     }
 
     private String pickDestination(){
-        JFrame testFrame = new JFrame("TreeCompress");
+        JFrame testFrame = new JFrame("ByteTreeCompress");
         FileDialog fd = new FileDialog(testFrame, "Choose a destination", FileDialog.SAVE);
         fd.setDirectory("C:\\");
         fd.setFile("");
@@ -133,7 +154,7 @@ public class Window extends JFrame {
     }
 
     private String pickFile(){
-        JFrame testFrame = new JFrame("TreeCompress");
+        JFrame testFrame = new JFrame("ByteTreeCompress");
         FileDialog fd = new FileDialog(testFrame, "Choose a file (.jpg or .png)", FileDialog.LOAD);
         fd.setDirectory("C:\\");
         fd.setFile("");
